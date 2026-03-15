@@ -97,11 +97,11 @@ export COMPOSER_HOME="$XDG_CONFIG_HOME/composer"
 export MANPAGER='nvim +Man!'
 export GOCACHE="$XDG_CACHE_HOME/go-build"
 
-#if [ -n "${NIX_SSL_CERT_FILE}" ]; then
-#  export NIX_SSL_CERT_FILE="/etc/ssl/cert.pem"
-#else
-#  export NIX_SSL_CERT_FILE="/etc/nix/macos-keychain.crt"
-#fi
+if [ -z "${NIX_SSL_CERT_FILE}" ]; then
+  export NIX_SSL_CERT_FILE="/etc/ssl/cert.pem"
+else
+  export NIX_SSL_CERT_FILE="/etc/nix/macos-keychain.crt"
+fi
 
 export NIX_SSL_CERT_FILE="${NIX_SSL_CERT_FILE:-/nix/store/d7b0vzrq8ps3allsr3md1pmilficdvw7-nss-cacert-3.119.1/etc/ssl/certs/ca-bundle.crt}"
 if test ! -r "$NIX_SSL_CERT_FILE"; then

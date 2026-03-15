@@ -76,7 +76,7 @@
           isNormalUser = true;
           extraGroups = userConfig.groups ++ (lib.optional userConfig.isAdmin "wheel");
           # Security: Change this password immediately after first login
-          initialPassword = "216012";
+          initialPassword = "216011";
 
           # SSH public key authentication
           openssh.authorizedKeys.keys = userConfig.sshKeys;

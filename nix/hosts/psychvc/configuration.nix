@@ -267,7 +267,7 @@ in {
         ExecStartPre = [
           "${pkgs.coreutils}/bin/mkdir -p /mnt/homelab-data/services/immich/library"
           "${pkgs.coreutils}/bin/mkdir -p /mnt/homelab-data/services/immich/postgres"
-          "${pkgs.coreutils}/bin/chown -R ${toString config.users.users.fredrik.uid}:${toString config.users.groups.users.gid} /mnt/homelab-data/services/immich"
+          "${pkgs.coreutils}/bin/chown -R ${toString config.users.users.osx.uid}:${toString config.users.groups.users.gid} /mnt/homelab-data/services/immich"
         ];
         ExecStart = "${pkgs.docker-compose}/bin/docker-compose up -d";
         ExecStop = "${pkgs.docker-compose}/bin/docker-compose down";
@@ -354,6 +354,7 @@ in {
   # Allow unfree packages (needed for various packages)
   nixpkgs.config.allowUnfree = true;
 
+  nix.settings.trusted-users = [ "osx" ];
   # TODO: Additional services that might be useful for a homelab:
   # - services.logrotate.enable = true; # Log management (enabled by default)
   # - services.cron.enable = true;      # Scheduled tasks (enabled by default)
