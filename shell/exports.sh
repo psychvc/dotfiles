@@ -96,12 +96,14 @@ export TMUXP_CONFIGDIR="$XDG_CONFIG_HOME/tmuxp"
 export COMPOSER_HOME="$XDG_CONFIG_HOME/composer"
 export MANPAGER='nvim +Man!'
 export GOCACHE="$XDG_CACHE_HOME/go-build"
+export NIX_SSL_CERT_FILE="/etc/ssl/cert.pem"
 
 add_to_path append "$HOME/.docker/bin"
 add_to_path append "$HOME/.cargo/bin"
 add_to_path append "$HOME/go/bin"
 add_to_path append "$DOTFILES_BREW_PREFIX/opt/mysql-client/bin"
 add_to_path prepend "$DOTFILES_BREW_PREFIX/opt/gnu-sed/libexec/gnubin"
+add_to_path append "$HOME/.local/state/nix/profiles/profile/bin"
 add_to_path append "$HOME/.lmstudio/bin" # Added by LM Studio CLI (lms)
 add_to_path append "$HOME/.opencode/bin" # Added by OpenCode AI
 
