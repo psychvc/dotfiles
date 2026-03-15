@@ -1,0 +1,358 @@
+{
+  description = "Top level NixOS Flake";
+
+  inputs = {
+    # Nixpkgs
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    #nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+
+    nixos-hardware.url = "github:NixOs/nixos-hardware/master";
+
+    # Unstable Packages
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    # Disko
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Home Manager
+    home-manager.url = "github:nix-community/home-manager";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Alacritty theme
+    alacritty-theme.url = "github:alexghr/alacritty-theme.nix";
+    alacritty-theme.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Templ
+    templ.url = "github:a-h/templ";
+    templ.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Ags
+    ags.url = "github:Aylur/ags";
+    ags.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Matugen
+    matugen.url = "github:InioX/matugen?ref=v2.2.0";
+    matugen.inputs.nixpkgs.follows = "nixpkgs";
+
+    # NixVim
+    nixvim.url = "github:nix-community/nixvim";
+    nixvim.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Zen browser
+    zen-browser.url = "github:0xc000022070/zen-browser-flake";
+
+    # Clawdbot
+    nix-clawdbot.url = "github:clawdbot/nix-clawdbot";
+
+    # Opencode
+    opencode.url = "github:anomalyco/opencode/v1.1.53";
+
+ rpi-linux-stable-src = {
+      flake = false;
+      url = "github:raspberrypi/linux/stable_20241008";
+    };
+    rpi-linux-6_6_78-src = {
+      flake = false;
+      url = "github:raspberrypi/linux/rpi-6.6.y";
+    };
+    rpi-linux-6_12_17-src = {
+      flake = false;
+      url = "github:raspberrypi/linux/rpi-6.12.y";
+    };
+    rpi-firmware-src = {
+      flake = false;
+      url = "github:raspberrypi/firmware/1.20241008";
+    };
+    rpi-firmware-nonfree-src = {
+      flake = false;
+      url = "github:RPi-Distro/firmware-nonfree/bookworm";
+    };
+    rpi-bluez-firmware-src = {
+      flake = false;
+      url = "github:RPi-Distro/bluez-firmware/bookworm";
+    };
+    rpicam-apps-src = {
+      flake = false;
+      url = "github:raspberrypi/rpicam-apps/v1.5.2";
+    };
+    libcamera-src = {
+      flake = false;
+      url = "github:raspberrypi/libcamera/69a894c4adad524d3063dd027f5c4774485cf9db"; # v0.3.1+rpt20240906
+    };
+    libpisp-src = {
+      flake = false;
+      url = "github:raspberrypi/libpisp/v1.0.7";
+    };
+  };
+
+  outputs = {
+    self,
+    nixpkgs,
+    disko,
+    home-manager,
+    alacritty-theme,
+    templ,
+    nixpkgs-unstable,
+    nixos-hardware,
+    ags,
+    nix-clawdbot,
+    ...
+  };
+   let
+      pinned = import srcs.nixpkgs {
+        system = "aarch64-linux";
+        overlays = with self.overlays; [ core libcamera ];
+      };
+    in
+    {
+      overlays = {
+        core = import ./overlays (builtins.removeAttrs srcs [ "self" ]);
+        libcamera = import ./overlays/libcamera.nix (builtins.removeAttrs srcs [ "self" ]);
+      };
+      nixosModules = {
+        raspberry-pi = import ./rpi {
+          inherit pinned;
+          core-overlay = self.overlays.core;
+          libcamera-overlay = self.overlays.libcamera;
+        };
+        sd-image = import ./sd-image;
+      };
+      nixosConfigurations = {
+        rpi-example = srcs.nixpkgs.lib.nixosSystem {
+          system = "aarch64-linux";
+          modules = [ self.nixosModules.raspberry-pi self.nixosModules.sd-image ./example ];
+        };
+      };
+      checks.aarch64-linux = self.packages.aarch64-linux;
+      packages.aarch64-linux = with pinned.lib;
+        let
+          kernels =
+            foldlAttrs f { } pinned.rpi-kernels;
+          f = acc: kernel-version: board-attr-set:
+            foldlAttrs
+              (acc: board-version: drv: acc // {
+                "linux-${kernel-version}-${board-version}" = drv;
+              })
+              acc
+              board-attr-set;
+        in
+        {
+          example-sd-image = self.nixosConfigurations.rpi-example.config.system.build.sdImage;
+          firmware = pinned.raspberrypifw;
+          libcamera = pinned.libcamera;
+          wireless-firmware = pinned.raspberrypiWirelessFirmware;
+          uboot-rpi-arm64 = pinned.uboot-rpi-arm64;
+        } // kernels;
+    } @ inputs: let
+    inherit (self) outputs;
+
+    systems = [
+      "aarch64-linux"
+      "i686-linux"
+      "x86_64-linux"
+      "aarch64-darwin"
+      "x86_64-darwin"
+    ];
+
+    hosts = [
+      {name = "LT-2JYFWXQM";}
+      {
+        name = "osx";
+        hardware = nixos-hardware.nixosModules.framework-13-7040-amd;
+        gaps = false;
+        monitors = [
+          {
+            name = "eDP-1";
+            dimensions = "preferred";
+            position = "0x0";
+            scale = 1.6;
+            internal = true;
+            framerate = 144;
+            transform = 0;
+          }
+        ];
+        cursor = 64;
+      }
+      {
+        name = "zen13";
+        hardware = nixos-hardware.nixosModules.framework-13-7040-amd;
+        gaps = false;
+        monitors = [
+          {
+            name = "eDP-1";
+            dimensions = "preferred";
+            position = "1920x0";
+            scale = 1.6;
+            internal = true;
+            framerate = 144;
+            transform = 0;
+          }
+        ];
+        cursor = 24;
+      }
+
+      {
+        name = "chidori";
+        gaps = false;
+        hardware = null;
+        monitors = [
+          {
+            name = "eDP-2";
+            width = "2560";
+            height = "1600";
+            dimensions = "2560x1600";
+            position = "1920x0";
+            scale = 1.6;
+            framerate = 60;
+            internal = true;
+            transform = 0;
+          }
+        ];
+        cursor = 64;
+      }
+      {
+        name = "amaterasu";
+        gaps = true;
+        hardware = null;
+        monitors = [
+          {
+            name = "desc:IDI Elgato Prom. 0x01348D27";
+            dimensions = "1024x600";
+            position = "-1024x0";
+            scale = 1;
+            framerate = 60;
+            transform = 0;
+          }
+          {
+            name = "desc:BNQ BenQ RD320UA 49R01325019";
+            dimensions = "preferred";
+            position = "0x0";
+            scale = 2;
+            framerate = 60;
+            transform = 0;
+          }
+          {
+            name = "desc:Invalid Vendor Codename - RTK J584T05 0x20231127";
+            dimensions = "3840x2160";
+            position = "auto-right";
+            scale = 2;
+            framerate = 60;
+            transform = 0;
+          }
+        ];
+        cursor = 64;
+      }
+
+    ];
+
+    forAllSystems = fn: nixpkgs.lib.genAttrs systems (system: fn {pkgs = import nixpkgs {inherit system;};});
+  in {
+    overlays = import ./overlays {inherit inputs;};
+
+    formatter = forAllSystems ({pkgs}: pkgs.alejandra);
+
+    packages = forAllSystems ({pkgs}: import ./pkgs pkgs);
+
+    nixosConfigurations = builtins.listToAttrs (
+      map (host: {
+        name = host.name;
+        value = nixpkgs.lib.nixosSystem {
+          specialArgs = {
+            inherit inputs outputs;
+            meta =
+              host
+              // {
+                hostname = host.name;
+              };
+          };
+          system = "x86_64-linux";
+          modules =
+            [
+              # Modules
+              disko.nixosModules.disko
+              # System Specific
+              ./machines/${host.name}/hardware-configuration.nix
+              ./machines/${host.name}/disko-config.nix
+              # General
+              ./configuration.nix
+              # Home Manager
+              home-manager.nixosModules.home-manager
+              {
+                home-manager.useGlobalPkgs = true;
+                home-manager.useUserPackages = true;
+                home-manager.users.elliott = import ./home/home.nix;
+                home-manager.extraSpecialArgs = {
+                  inherit inputs;
+                  meta = host;
+                };
+              }
+              # Zenbot user (only on hosts with hasClawdUser)
+              (nixpkgs.lib.mkIf (host.hasClawdUser or false) {
+                programs.fish.enable = true;
+                users.users.zenbot = {
+                  isNormalUser = true;
+                  description = "Zenbot Service User";
+                  extraGroups = [
+                    "wheel"
+                    "docker"
+                    "dotfiles"
+                  ];
+                  shell = nixpkgs.legacyPackages.x86_64-linux.fish;
+                };
+                security.sudo.extraRules = [
+                  {
+                    users = ["osx"];
+                    commands = [
+                      {
+                        command = "ALL";
+                        options = ["NOPASSWD"];
+                      }
+                    ];
+                  }
+                ];
+                home-manager.users.osx = import ./home/home-osx.nix;
+
+                # Clawdbot gateway system service
+                systemd.services.clawdbot-gateway = let
+                  pkgs = nixpkgs.legacyPackages.x86_64-linux;
+                in {
+                  description = "Clawdbot Gateway";
+                  after = ["network.target" "local-fs.target"];
+                  wantedBy = ["multi-user.target"];
+                  unitConfig = {
+                    RequiresMountsFor = "/home/osx/clawd/dotfiles";
+                  };
+                  path = [
+                    pkgs.nodejs_22
+                    pkgs.coreutils
+                    pkgs.gnused
+                    pkgs.bash
+                  ];
+                  serviceConfig = {
+                    Type = "simple";
+                    User = "osx";
+                    Group = "users";
+                    Environment = [
+                      "PNPM_HOME=/home/osx/.local/share/pnpm"
+                      "HOME=/home/zenbot"
+                    ];
+                    ExecStart = "/home/osx/.local/share/pnpm/clawdbot gateway";
+                    Restart = "on-failure";
+                    RestartSec = 5;
+                    WorkingDirectory = "/home/osx";
+                  };
+                };
+              })
+            ]
+            ++ (
+              if host.hardware != null
+              then [host.hardware]
+              else []
+            );
+        };
+      })
+      hosts
+    );
+  };
+}
